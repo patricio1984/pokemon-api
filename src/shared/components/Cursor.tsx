@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import { motion, useMotionValue, useSpring } from 'framer-motion'
-import { useSettings } from '../hooks/useSettings'
+import { useSettings } from '../../features/settings/useSettings'
 
 export const Cursor: React.FC = () => {
   const { settings } = useSettings()

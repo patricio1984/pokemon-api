@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { useSettings } from './useSettings'
+import { useSettings } from '../../features/settings/useSettings'
 
 // simple hook that returns a function to play an audio asset
 export function useAudio(src: string) {

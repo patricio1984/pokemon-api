@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { SettingsContext } from '../contexts/settings-context-object'
+import { SettingsContext } from './settings-context-object'
 
 export function useSettings() {
   const ctx = useContext(SettingsContext)

@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSettings } from "../hooks/useSettings";
+import { useSettings } from "./useSettings";
 
 const panel = {
   hidden: { x: "100%", opacity: 0 },

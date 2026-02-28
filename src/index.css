@@ -81,6 +81,7 @@ html, body, #root {
   scroll-behavior: smooth;
   background-color: var(--tw-color-base);
   color: var(--tw-color-white);
+  position: relative;
 }
 
 body {
@@ -183,4 +184,65 @@ body[data-scanlines="true"]::before {
 .link-underline:hover::after {
   transform: scaleX(1);
   transform-origin: bottom left;
+}
+
+/* Aislamiento super agresivo para listas inmensas */
+.contain-content {
+  contain: content;
+}
+
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px; /* Tamaño estimado de la tarjeta para evitar saltos en el scroll */
+}
+
+/* Card interactions (Replaces Framer Motion for performance) */
+.poke-card {
+  will-change: transform;
+  transform: translateZ(0); /* Hardware acceleration */
+  backface-visibility: hidden;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s;
+}
+.poke-card:hover {
+  transform: translateY(-4px) translateZ(0);
+}
+.poke-card:active {
+  transform: scale(0.98) translateZ(0);
+}
+.poke-card-img {
+  will-change: transform;
+  transform: translateZ(0);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.poke-card:hover .poke-card-img {
+  transform: scale(1.06) translateZ(0);
+}
+
+.poke-grid-card {
+  will-change: transform;
+  transform: translateZ(0); /* Hardware acceleration */
+  backface-visibility: hidden;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.3s, border-color 0.3s;
+  animation: fadeScale 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+.poke-grid-card:active {
+  transform: scale(0.95) translateZ(0);
+}
+.poke-grid-card:hover .poke-card-img {
+  transform: translateY(-8px) scale(1.1) translateZ(0);
+}
+
+.fade-in-up {
+  will-change: transform, opacity;
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes fadeScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }

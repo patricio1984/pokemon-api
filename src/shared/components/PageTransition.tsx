@@ -27,7 +27,7 @@ export const PageTransition: React.FC<React.PropsWithChildren> = ({ children }) 
         initial={{ x: '-100%' }}
         animate={overlay}
       />
-      <MDIV initial="hidden" animate="enter" exit="exit" variants={variants} className="w-full h-full">
+      <MDIV initial="hidden" animate="enter" exit="exit" variants={variants} className="relative w-full h-full">
         {children}
       </MDIV>
     </>

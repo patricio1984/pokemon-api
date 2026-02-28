@@ -5,7 +5,7 @@ import {
   useTransform,
   useReducedMotion,
 } from "framer-motion";
-import { useCountUp } from "../hooks/useCountUp";
+import { useCountUp } from "../../../shared/hooks/useCountUp";
 import type { FC } from "react";
 
 const Hero: FC = () => {
@@ -53,6 +53,7 @@ const Hero: FC = () => {
     <section
       ref={heroRef}
       className="relative min-h-[95vh] flex flex-col items-center justify-center pt-32 pb-24 overflow-hidden px-4 md:px-12"
+      style={{ position: 'relative' }}
     >
       {/* Cinematic Ambient Lighting - Animated Radial Gradient behind headline */}
       <motion.div
@@ -181,9 +182,7 @@ const Hero: FC = () => {
               <p
                 className="font-display font-medium text-4xl text-white mb-2"
                 ref={stat.ref as React.RefObject<HTMLParagraphElement>}
-              >
-                {stat.count}
-              </p>
+              />
               <p className="font-mono text-[9px] tracking-[0.2em] text-white/30 uppercase text-center">
                 {stat.label}
               </p>
