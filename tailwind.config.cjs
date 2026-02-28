@@ -7,7 +7,8 @@ module.exports = {
       colors: {
         nearblack: '#0A0A0A',
         surface: '#1A1A1A',
-        white: '#FFFFFF',
+        white: 'var(--tw-color-white)',
+        black: 'var(--tw-color-black)',
         yellow: '#E8FF00',
         red: '#FF2D55'
       },

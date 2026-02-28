@@ -9,7 +9,7 @@ import { useGamepad } from './hooks/useGamepad'
 import Modal from './components/Modal'
 import SettingsPanel from './components/SettingsPanel'
 import { useAudio } from './hooks/useAudio'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { AnimatePresence } from 'framer-motion'
 
 interface Stat {
@@ -102,7 +102,7 @@ const PokemonRow: React.FC<{
                   <span
                     key={t}
                     className="text-[9px] md:text-[11px] px-2 md:px-3 py-0.5 md:py-1 rounded-full font-mono uppercase"
-                    style={{ background: 'rgba(255,255,255,0.03)', letterSpacing: '0.1em' }}
+                    style={{ background: 'var(--modal-badge-bg)', letterSpacing: '0.1em' }}
                 >
                   {t}
                 </span>
@@ -169,7 +169,11 @@ const PokemonGridCard: React.FC<{
         <span className="font-display text-sm md:text-lg font-light tracking-tight uppercase block leading-none mb-1 md:mb-2">{pokemon.name}</span>
         <div className="flex gap-1 justify-center">
           {pokemon.types.map(t => (
-            <span key={t} className="text-[9px] font-mono tracking-widest px-2 py-0.5 bg-black/40 rounded-full uppercase" style={{ color: typeColors[t] ?? '#fff' }}>{t}</span>
+            <span
+              key={t}
+              className="text-[9px] md:text-[11px] px-2 md:px-3 py-0.5 rounded-full font-mono uppercase"
+              style={{ background: 'var(--modal-badge-bg)', letterSpacing: '0.1em' }}
+            >{t}</span>
           ))}
         </div>
       </div>
@@ -189,14 +193,24 @@ function App() {
   const [focused, setFocused] = React.useState<number>(0)
   const [modalOpen, setModalOpen] = React.useState(false)
   const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [viewMode, setViewMode] = React.useState<'list' | 'grid'>('list')
+  const [searchQuery, setSearchQuery] = React.useState('')
+  const [filterType, setFilterType] = React.useState('all')
   const clickSound = useAudio('/sounds/click.wav')
 
 
 const fetchPage = async ({ pageParam = 0 }) => {
     const res = await fetch(`https://pokeapi.co/api/v2/pokemon?offset=${pageParam}&limit=20`)
     const json = await res.json()
+    const validResults = json.results.filter((item: { url: string }) => {
+      // PokeAPI tiene muchas formas "extrañas" por encima de id 10000 (megas, gmax, etc)
+      // Evitamos romper la UI con sprites inexistentes
+      const id = parseInt(item.url.split('/').filter(Boolean).pop() || '0', 10)
+      return id < 10000
+    })
+    
     const details = await Promise.all(
-      json.results.map(async (item: { url: string }) => {
+      validResults.map(async (item: { url: string }) => {
         const dRes = await fetch(item.url)
         return dRes.json() as Promise<PokemonDetail>
       })
@@ -216,17 +230,68 @@ const fetchPage = async ({ pageParam = 0 }) => {
     queryKey: ['pokemon'],
     queryFn: fetchPage,
     initialPageParam: 0,
-    getNextPageParam: (lastPage) => lastPage.nextOffset,
+    getNextPageParam: (lastPage) => lastPage.results.length === 0 ? undefined : lastPage.nextOffset,
   })
 
-  const fullList = React.useMemo(
-    () => data?.pages.flatMap((page) => page.results) ?? [],
-    [data],
-  )
+  // === GLOBAL INDEX FOR SEARCH ===
+  // Descargamos ~1000 registros ligeros (sólo name+url) una vez para potenciar la búsqueda real.
+  const { data: globalIndex } = useQuery({
+    queryKey: ['pokemon-index'],
+    queryFn: async () => {
+      const res = await fetch('https://pokeapi.co/api/v2/pokemon?limit=1025') // Hasta gen 9
+      const json = await res.json()
+      return json.results as { name: string, url: string }[]
+    },
+    staleTime: Infinity,
+  })
+
+  // Buscamos resultados que matcheen la query globalmente, pero que AUN NO estén en pantalla
+  const searchResultsFromAPI = React.useMemo(() => {
+    if (!searchQuery.trim() || !globalIndex) return []
+    const lowerQuery = searchQuery.toLowerCase()
+    
+    // Identificamos IDs que ya tenemos cargados por el InfiniteQuery (para no duplicarlos)
+    const loadedIds = new Set(data?.pages.flatMap(p => p.results).map(p => p.id))
+    
+    return globalIndex
+      .filter(p => p.name.includes(lowerQuery))
+      .map(p => {
+        const id = parseInt(p.url.split('/').filter(Boolean).pop() || '0', 10)
+        return { name: p.name, url: p.url, id }
+      })
+      .filter(p => !loadedIds.has(p.id) && p.id < 10000)
+      // Limitamos a los primeros 20 resultados de búsqueda externa para no atascar requests
+      .slice(0, 20)
+  }, [searchQuery, globalIndex, data])
+
+  // Fetcheamos el detalle de los matches encontrados en el índice
+  const { data: searchDetails = [] } = useQuery({
+    queryKey: ['pokemon-search', searchResultsFromAPI.map(p => p.id).join(',')],
+    queryFn: async () => {
+      if (searchResultsFromAPI.length === 0) return []
+      const details = await Promise.all(
+        searchResultsFromAPI.map(async (item) => {
+          const dRes = await fetch(item.url)
+          return dRes.json() as Promise<PokemonDetail>
+        })
+      )
+      return details.map((d: PokemonDetail) => ({
+        id: d.id,
+        name: d.name,
+        types: d.types.map((t) => t.type.name),
+        stats: d.stats.map((s) => ({ name: s.stat.name, value: s.base_stat })),
+      }))
+    },
+    enabled: searchResultsFromAPI.length > 0
+  })
+
+  const fullList = React.useMemo(() => {
+    const base = data?.pages.flatMap((page) => page.results) ?? []
+    return [...base, ...searchDetails].sort((a, b) => a.id - b.id)
+  }, [data, searchDetails])
 
   // filtering/search state for "Explore the Data"
-  const [searchQuery, setSearchQuery] = React.useState('')
-  const [filterType, setFilterType] = React.useState('all')
+  // (State hoisted to top of component)
 
   const availableTypes = React.useMemo(() => {
     const types = new Set<string>()
@@ -242,6 +307,8 @@ const fetchPage = async ({ pageParam = 0 }) => {
 
   React.useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return
       if (fullList.length > 0) {
         if (e.key === 'ArrowDown' || e.key === 's') {
           setFocused((f) => Math.min(f + 1, fullList.length - 1))
@@ -265,18 +332,17 @@ const fetchPage = async ({ pageParam = 0 }) => {
     if (dir === 'a') setModalOpen(true)
   })
 
-  const { ref: loadMoreRef, inView: loadMoreInView } = useInView<HTMLLIElement>({ threshold: 0, rootMargin: '200px' })
-  const fetchedRef = React.useRef(false)
+  // We only pause the infinite scroll when actively searching by name, 
+  // because name searches pull from the complete global index directly.
+  // When filtering by type, we STILL allow fetching subsequent pages.
+  const isFiltering = searchQuery.trim().length > 0
+
+  const { ref: loadMoreRef, inView: loadMoreInView } = useInView<HTMLDivElement>({ margin: '200px' })
   React.useEffect(() => {
-    if (loadMoreInView) {
-      if (!fetchedRef.current && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage()
-        fetchedRef.current = true
-      }
-    } else {
-      fetchedRef.current = false
+    if (loadMoreInView && hasNextPage && !isFetchingNextPage && !isFiltering) {
+      fetchNextPage()
     }
-  }, [loadMoreInView, hasNextPage, isFetchingNextPage, fetchNextPage])
+  }, [loadMoreInView, hasNextPage, isFetchingNextPage, fetchNextPage, isFiltering])
 
   const appRef = React.useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll({ target: appRef, offset: ['start start', 'end end'] })
@@ -346,122 +412,156 @@ const fetchPage = async ({ pageParam = 0 }) => {
               )}
             </Modal>
 
-            <motion.div 
+            {/* ── SECTION HEADER + TABS ── */}
+            <motion.div
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
-              className="mb-16 flex flex-col gap-2 border-b border-white/10 pb-6"
+              className="mb-10 flex flex-col border-b border-white/10 pb-6"
             >
-              <h2 className="font-display text-3xl font-light tracking-tight">Available Endpoint Data</h2>
-              <p className="font-mono text-sm text-white/40 tracking-wide">Select an entry to view structured base statistics.</p>
-            </motion.div>
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                <div>
+                  <h2 className="font-display text-3xl font-light tracking-tight">Pokémon Dataset</h2>
+                  <p className="font-mono text-sm text-white/40 tracking-wide mt-1">Select an entry to view structured base statistics.</p>
+                </div>
 
-            <ul className="flex flex-col">
-              {!data
-                ? Array.from({ length: 8 }).map((_, i) => <li key={i} className="h-24 bg-white/2 mb-2 skeleton rounded-lg" />)
-                : fullList.map((p, idx) => (
-                    <PokemonRow
-                      key={p?.id ?? idx}
-                      pokemon={p}
-                      delay={idx * 0.05}
-                      selected={idx === focused}
-                      onClick={() => { clickSound(); setFocused(idx); setModalOpen(true) }}
-                    />
-                  ))}
-              <li ref={loadMoreRef} className="h-32 flex items-center justify-center">
-                <span className="font-mono text-xs tracking-widest text-white/30 uppercase">
-                  {isFetchingNextPage ? (
-                  'Fetching subsequent records...'
-                ) : hasNextPage ? (
-                  <span className="link-underline">Scroll to load additional data</span>
-                ) : (
-                  'End of dataset.'
-                )}
-                </span>
-              </li>
-            </ul>
-          
-            {/* EXPLORE THE DATA SECTION */}
-            <motion.div
-              variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-50px" }}
-              className="mt-32 border-t border-white/10 pt-16"
-            >
-              <div className="mb-12">
-                  <motion.h2
-                      variants={{
-                        hidden: { opacity: 0, y: 20 },
-                        visible: { opacity: 1, y: 0 }
-                      }}
-                      transition={{
-                        duration: 0.6,
-                        ease: [0.16, 1, 0.3, 1]
-                      }}
-                      className="font-display text-3xl font-light tracking-tight mb-8"
+                {/* View mode tabs */}
+                <div className="flex items-center gap-px p-1 rounded-full border border-white/10 bg-white/3 self-start sm:self-auto shrink-0" style={{ borderColor: 'var(--modal-badge-border)', background: 'var(--modal-badge-bg)' }}>
+                  {(['list', 'grid'] as const).map((mode) => (
+                    <motion.button
+                      key={mode}
+                      onClick={() => setViewMode(mode)}
+                      whileTap={{ scale: 0.94 }}
+                      className="relative px-5 py-1.5 rounded-full font-mono text-xs uppercase tracking-widest transition-colors duration-200"
+                      style={{ color: viewMode === mode ? 'var(--tw-color-base)' : 'var(--text-muted)' }}
                     >
-                      Explore the Data
-                    </motion.h2>
-                  
-                  <div className="flex flex-col md:flex-row gap-6 items-end">
-                    <div className="relative w-full md:max-w-md group">
-                      <input 
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by species name..."
-                        className="w-full bg-transparent border-0 border-b border-white/20 pb-2 px-0 text-lg font-display focus:border-white focus:ring-0 outline-none transition-colors peer placeholder:text-white/20 rounded-none blend-glow"
-                        spellCheck={false}
-                      />
-                      <motion.div 
-                        className="absolute bottom-0 left-0 h-px bg-acid origin-left pointer-events-none"
-                        initial={{ scaleX: 0 }}
-                        animate={{ scaleX: searchQuery ? 1 : 0 }}
-                        style={{ width: '100%' }}
-                        layout
-                      />
-                      <label className="absolute -top-5 left-0 font-mono text-[10px] tracking-widest text-white/40 uppercase opacity-0 peer-focus:opacity-100 transition-opacity">Query executing...</label>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2 flex-1 justify-end">
-                      <motion.button whileTap={{ scale: 0.93 }}
-                        onClick={() => setFilterType('all')}
-                        className={`font-mono text-xs px-4 py-2 rounded-full border transition-colors ${filterType === 'all' ? 'bg-white text-black border-white' : 'border-white/10 hover:border-white/30 text-white/60'}`}
-                      >
-                        All Elements
-                      </motion.button>
-                      {availableTypes.map(type => (
-                        <motion.button key={type} whileTap={{ scale: 0.93 }}
-                          onClick={() => setFilterType(type)}
-                          className={`font-mono text-xs px-4 py-2 rounded-full border transition-colors ${filterType === type ? 'bg-white text-black border-white' : 'border-white/10 hover:border-white/30 text-white/60'}`}
-                        >
-                          {type}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </div>
+                      {viewMode === mode && (
+                        <motion.span
+                          layoutId="tab-pill"
+                          className="absolute inset-0 rounded-full"
+                          style={{ background: 'var(--tw-color-white)' }}
+                          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        />
+                      )}
+                      <span className="relative z-10">{mode}</span>
+                    </motion.button>
+                  ))}
+                </div>
               </div>
 
-              {/* ANIMATED GRID */}
-              <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                <AnimatePresence mode="popLayout">
-                  {filteredList.length === 0 ? (
-                    <motion.div 
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} layout
-                      className="col-span-full py-20 text-center flex flex-col items-center justify-center border border-white/5 rounded-2xl bg-white/1"
-                    >
-                      <p className="font-display font-light text-2xl text-white/30 mb-2">No matching records found.</p>
-                      <p className="font-mono text-xs tracking-widest text-white/20 uppercase">Adjust query parameters</p>
-                    </motion.div>
-                  ) : (
-                    filteredList.map((pokemon) => (
-                      <PokemonGridCard key={pokemon.id} pokemon={pokemon} onClick={() => { clickSound(); setFocused(fullList.findIndex(p => p.id === pokemon.id)); setModalOpen(true); }} />
-                    ))
-                  )}
-                </AnimatePresence>
-              </motion.div>
+              {/* Search + type filters — only in grid mode */}
+              <AnimatePresence>
+                {viewMode === 'grid' && (
+                  <motion.div
+                    key="grid-filters"
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: 'auto', marginTop: 24 }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                    transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-col md:flex-row gap-6 items-end pt-2">
+                      <div className="relative w-full md:max-w-md group">
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          placeholder="Search by species name..."
+                          className="w-full bg-transparent border-0 border-b border-white/20 pb-2 px-0 text-lg font-display focus:border-white focus:ring-0 outline-none transition-colors peer placeholder:text-white/20 rounded-none blend-glow"
+                          spellCheck={false}
+                        />
+                        <motion.div
+                          className="absolute bottom-0 left-0 h-px bg-acid origin-left pointer-events-none"
+                          initial={{ scaleX: 0 }}
+                          animate={{ scaleX: searchQuery ? 1 : 0 }}
+                          style={{ width: '100%' }}
+                          layout
+                        />
+                        <label className="absolute -top-5 left-0 font-mono text-[10px] tracking-widest text-white/40 uppercase opacity-0 peer-focus:opacity-100 transition-opacity">Query executing...</label>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 flex-1 justify-end">
+                        <motion.button whileTap={{ scale: 0.93 }}
+                          onClick={() => setFilterType('all')}
+                          className={`font-mono text-xs px-4 py-2 rounded-full border transition-colors ${
+                            filterType === 'all' ? 'bg-white text-black border-white' : 'border-white/10 hover:border-white/30 text-white/60'
+                          }`}
+                        >All Elements</motion.button>
+                        {availableTypes.map(type => (
+                          <motion.button key={type} whileTap={{ scale: 0.93 }}
+                            onClick={() => setFilterType(type)}
+                            className={`font-mono text-xs px-4 py-2 rounded-full border transition-colors ${
+                              filterType === type ? 'bg-white text-black border-white' : 'border-white/10 hover:border-white/30 text-white/60'
+                            }`}
+                          >{type}</motion.button>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
+
+            {/* ── LIST VIEW ── */}
+            <AnimatePresence mode="wait">
+              {viewMode === 'list' ? (
+                <motion.ul
+                  key="list"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex flex-col"
+                >
+                  {!data
+                    ? Array.from({ length: 8 }).map((_, i) => <li key={i} className="h-24 bg-white/2 mb-2 skeleton rounded-lg" />)
+                    : fullList.map((p, idx) => (
+                        <PokemonRow
+                          key={p?.id ?? idx}
+                          pokemon={p}
+                          delay={idx * 0.05}
+                          selected={idx === focused}
+                          onClick={() => { clickSound(); setFocused(idx); setModalOpen(true) }}
+                        />
+                      ))}
+                </motion.ul>
+              ) : (
+                /* ── GRID VIEW ── */
+                <motion.div
+                  key="grid"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <AnimatePresence mode="popLayout">
+                      {filteredList.length === 0 ? (
+                        <motion.div
+                          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} layout
+                          className="col-span-full py-20 text-center flex flex-col items-center justify-center border border-white/5 rounded-2xl bg-white/1"
+                        >
+                          <p className="font-display font-light text-2xl text-white/30 mb-2">No matching records found.</p>
+                          <p className="font-mono text-xs tracking-widest text-white/20 uppercase">Adjust query parameters</p>
+                        </motion.div>
+                      ) : (
+                        filteredList.map((pokemon) => (
+                          <PokemonGridCard key={pokemon.id} pokemon={pokemon} onClick={() => { clickSound(); setFocused(fullList.findIndex(p => p.id === pokemon.id)); setModalOpen(true) }} />
+                        ))
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div ref={loadMoreRef} className="h-24 flex items-center justify-center mt-6 w-full">
+              <span className="font-mono text-xs tracking-widest text-white/30 uppercase">
+                {isFetchingNextPage ? 'Fetching subsequent records...' : hasNextPage ? (
+                  <span className="link-underline">Scroll to load additional data</span>
+                ) : 'End of dataset.'}
+              </span>
+            </div>
           </main>
         </PageTransition>
       </ErrorBoundary>
