@@ -82,7 +82,7 @@ const Hero: FC = () => {
           src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png"
           alt=""
           draggable={false}
-          className="w-[55vw] max-w-2xl translate-x-[15%] translate-y-[-8%] select-none"
+          className="w-[80vw] max-w-2xl md:w-[55vw] translate-x-[15%] md:translate-y-[-8%] translate-y-[-20%] select-none"
           style={{
             filter: 'brightness(0.8) sepia(0.3) hue-rotate(15deg)',
             mixBlendMode: 'luminosity',

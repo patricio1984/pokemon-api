@@ -73,11 +73,11 @@ const PokemonRow: React.FC<{
         whileHover={{ y: -4 }}
         whileTap={{ scale: 0.98, transition: { type: 'spring', stiffness: 400, damping: 17 } }}
         transition={{ type: 'spring', stiffness: 180, damping: 20 }}
-        className={`cursor-glow relative w-full text-left flex items-center gap-4 py-4 px-4 rounded-lg transition-colors duration-300`}
+        className={`cursor-glow relative w-full text-left flex items-center gap-3 py-3 px-3 md:gap-4 md:py-4 md:px-4 rounded-lg transition-colors duration-300`}
         style={{ cursor: 'pointer', background: selected ? 'rgba(255,255,255,0.02)' : undefined }}
       >
         <motion.div
-          className="shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-surface flex items-center justify-center"
+          className="shrink-0 w-14 h-14 md:w-20 md:h-20 rounded-lg overflow-hidden bg-surface flex items-center justify-center"
           whileHover={{ scale: 1.06 }}
           transition={{ type: 'spring', stiffness: 220, damping: 20 }}
         >
@@ -90,19 +90,19 @@ const PokemonRow: React.FC<{
           />
         </motion.div>
 
-        <div className="flex-1 flex items-center justify-between gap-4">
-          <div className="flex flex-col">
-            <span className="font-mono text-xs text-white/40">NO. {String(pokemon.id).padStart(3, '0')}</span>
-            <span className="font-display text-xl md:text-2xl font-light tracking-tight mt-1">{pokemon.name}</span>
-          </div>
+<div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+            <div className="flex flex-col min-w-0">
+              <span className="font-mono text-[10px] text-white/40">NO. {String(pokemon.id).padStart(3, '0')}</span>
+              <span className="font-display text-base md:text-2xl font-light tracking-tight mt-0.5 truncate">{pokemon.name}</span>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <div className="flex gap-2">
-              {pokemon.types.map((t) => (
-                <span
-                  key={t}
-                  className="text-[11px] px-3 py-1 rounded-full font-mono uppercase"
-                  style={{ background: 'rgba(255,255,255,0.03)', letterSpacing: '0.12em' }}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex gap-1 md:gap-2">
+                {pokemon.types.map((t) => (
+                  <span
+                    key={t}
+                    className="text-[9px] md:text-[11px] px-2 md:px-3 py-0.5 md:py-1 rounded-full font-mono uppercase"
+                    style={{ background: 'rgba(255,255,255,0.03)', letterSpacing: '0.1em' }}
                 >
                   {t}
                 </span>
@@ -146,7 +146,7 @@ const PokemonGridCard: React.FC<{
       whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 17 } }}
       transition={{ type: 'spring', stiffness: 200, damping: 20 }}
       onClick={onClick}
-      className="cursor-glow relative flex flex-col items-center p-6 rounded-xl bg-white/2 border border-white/4 hover:bg-white/4 hover:border-white/10 transition-colors group aspect-square justify-center gap-4 overflow-hidden"
+      className="cursor-glow relative flex flex-col items-center p-3 md:p-6 rounded-xl bg-white/2 border border-white/4 hover:bg-white/4 hover:border-white/10 transition-colors group aspect-square justify-center gap-2 md:gap-4 overflow-hidden"
     >
       <div className="absolute top-3 left-3 font-mono text-[10px] text-white/30 group-hover:text-white/50 transition-colors">
         #{String(pokemon.id).padStart(3, '0')}
@@ -155,7 +155,7 @@ const PokemonGridCard: React.FC<{
       <motion.div
         whileHover={{ y: -8, scale: 1.1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-        className="w-24 h-24 relative z-10"
+        className="w-14 h-14 md:w-24 md:h-24 relative z-10"
       >
         <img
           src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemon.id}.png`}
@@ -166,7 +166,7 @@ const PokemonGridCard: React.FC<{
       </motion.div>
       
       <div className="text-center relative z-10">
-        <span className="font-display text-lg font-light tracking-tight uppercase block leading-none mb-2">{pokemon.name}</span>
+        <span className="font-display text-sm md:text-lg font-light tracking-tight uppercase block leading-none mb-1 md:mb-2">{pokemon.name}</span>
         <div className="flex gap-1 justify-center">
           {pokemon.types.map(t => (
             <span key={t} className="text-[9px] font-mono tracking-widest px-2 py-0.5 bg-black/40 rounded-full uppercase" style={{ color: typeColors[t] ?? '#fff' }}>{t}</span>
@@ -314,11 +314,11 @@ const fetchPage = async ({ pageParam = 0 }) => {
               {fullList[focused] && (
                 <div className="space-y-8 p-4">
                   <div className="flex flex-col items-center gap-4">
-                    <p className="font-mono tracking-widest text-white/30 text-sm">NO. {String(fullList[focused].id).padStart(3, '0')}</p>
+                    <p className="font-mono tracking-widest text-sm" style={{ color: 'var(--modal-text-dim)' }}>NO. {String(fullList[focused].id).padStart(3, '0')}</p>
                     <h2 className="text-4xl md:text-6xl font-display font-light tracking-tight uppercase">{fullList[focused].name}</h2>
                     <div className="flex gap-2 mt-2">
                         {fullList[focused].types.map((t) => (
-                          <span key={t} className="px-3 py-1 border border-white/20 bg-white/5 rounded-full text-[10px] uppercase font-mono tracking-wider">
+                          <span key={t} className="px-3 py-1 rounded-full text-[10px] uppercase font-mono tracking-wider" style={{ border: '1px solid var(--modal-badge-border)', background: 'var(--modal-badge-bg)' }}>
                             {t}
                           </span>
                         ))}
@@ -334,10 +334,10 @@ const fetchPage = async ({ pageParam = 0 }) => {
                       />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-px bg-white/10 p-px rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-2 gap-px p-px rounded-lg overflow-hidden" style={{ background: 'var(--modal-badge-border)' }}>
                     {fullList[focused].stats.map((s) => (
-                      <div key={s.name} className="flex justify-between items-center bg-surface p-4">
-                        <span className="font-mono text-xs text-white/50 uppercase tracking-wider">{s.name.replace('-', ' ')}</span>
+                      <div key={s.name} className="flex justify-between items-center p-4" style={{ background: 'var(--modal-stat-bg)' }}>
+                        <span className="font-mono text-xs uppercase tracking-wider" style={{ color: 'var(--modal-text-muted)' }}>{s.name.replace('-', ' ')}</span>
                         <span className="font-display text-xl">{s.value}</span>
                       </div>
                     ))}

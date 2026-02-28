@@ -4,6 +4,28 @@ import { useSettings } from '../hooks/useSettings'
 
 export const Cursor: React.FC = () => {
   const { settings } = useSettings()
+  const [isTouch, setIsTouch] = React.useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
+  )
+
+  useEffect(() => {
+    const mql = window.matchMedia('(pointer: coarse)')
+    const onChange = (e: MediaQueryListEvent) => setIsTouch(e.matches)
+    if (mql.addEventListener) {
+      mql.addEventListener('change', onChange)
+    } else {
+      // fallback for older browsers
+      (mql as MediaQueryList).addListener(onChange as (this: MediaQueryList, ev: MediaQueryListEvent) => void)
+    }
+    return () => {
+      if (mql.removeEventListener) {
+        mql.removeEventListener('change', onChange)
+      } else {
+        // fallback for older browsers
+        (mql as MediaQueryList).removeListener(onChange as (this: MediaQueryList, ev: MediaQueryListEvent) => void)
+      }
+    }
+  }, [])
 
   const cursorX = useMotionValue(-100)
   const cursorY = useMotionValue(-100)
@@ -23,6 +45,8 @@ export const Cursor: React.FC = () => {
   }, [cursorX, cursorY])
 
   const blendMode = settings.colorScheme === 'light' ? 'normal' : 'difference'
+
+  if (isTouch) return null
 
   return (
     <>

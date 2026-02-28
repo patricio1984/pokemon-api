@@ -34,6 +34,16 @@
   --toggle-track-off: rgba(255, 255, 255, 0.12);
   --toggle-track-on:  rgba(255, 255, 255, 0.85);
   --toggle-thumb: #080808;
+  --modal-overlay: rgba(0, 0, 0, 0.55);
+  --modal-bg: rgba(14, 14, 14, 0.78);
+  --modal-border: rgba(255, 255, 255, 0.10);
+  --modal-inset: rgba(255, 255, 255, 0.06);
+  --modal-text: rgba(255, 255, 255, 1);
+  --modal-text-muted: rgba(255, 255, 255, 0.50);
+  --modal-text-dim: rgba(255, 255, 255, 0.30);
+  --modal-badge-border: rgba(255, 255, 255, 0.20);
+  --modal-badge-bg: rgba(255, 255, 255, 0.05);
+  --modal-stat-bg: rgba(255, 255, 255, 0.04);
 }
 
 :root[data-color-scheme="light"] {
@@ -54,6 +64,16 @@
   --toggle-track-off: rgba(0, 0, 0, 0.12);
   --toggle-track-on:  rgba(0, 0, 0, 0.75);
   --toggle-thumb: #ffffff;
+  --modal-overlay: rgba(80, 80, 80, 0.35);
+  --modal-bg: rgba(248, 248, 246, 0.82);
+  --modal-border: rgba(0, 0, 0, 0.08);
+  --modal-inset: rgba(0, 0, 0, 0.04);
+  --modal-text: rgba(17, 17, 17, 1);
+  --modal-text-muted: rgba(17, 17, 17, 0.50);
+  --modal-text-dim: rgba(17, 17, 17, 0.30);
+  --modal-badge-border: rgba(0, 0, 0, 0.15);
+  --modal-badge-bg: rgba(0, 0, 0, 0.04);
+  --modal-stat-bg: rgba(0, 0, 0, 0.03);
 }
 
 html, body, #root {
@@ -65,10 +85,14 @@ html, body, #root {
 
 body {
   font-family: var(--font-display);
-  cursor: none; 
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Custom cursor only on pointer-precise devices (mouse). Touch devices keep native cursor. */
+@media (pointer: fine) {
+  body { cursor: none; }
 }
 
 html[data-noise="true"]::after {
